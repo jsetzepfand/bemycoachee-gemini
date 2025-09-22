@@ -6,7 +6,7 @@ import { useChatStore } from '../stores/chat'
 const chatStore = useChatStore()
 
 function handleSendMessage(message: string) {
-  chatStore.addMessage(message)
+  chatStore.addMessage(message, 'user')
 }
 </script>
 

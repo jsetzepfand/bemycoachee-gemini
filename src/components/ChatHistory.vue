@@ -1,13 +1,29 @@
 <script setup lang="ts">
+import { ref, watch, nextTick } from 'vue'
 import ChatMessage from './ChatMessage.vue';
 
-defineProps<{
-  messages: string[]
+interface ChatMessage {
+  text: string
+  sender: 'user' | 'coach'
+  timestamp: string
+}
+
+const props = defineProps<{
+  messages: ChatMessage[]
 }>()
+
+const chatHistoryRef = ref<HTMLElement | null>(null)
+
+watch(() => props.messages.length, async () => {
+  await nextTick()
+  if (chatHistoryRef.value) {
+    chatHistoryRef.value.scrollTop = chatHistoryRef.value.scrollHeight
+  }
+}, { immediate: true })
 </script>
 
 <template>
-  <div class="chat-history">
+  <div class="chat-history" ref="chatHistoryRef">
     <ChatMessage v-for="(message, index) in messages" :key="index" :message="message" />
   </div>
 </template>
@@ -21,5 +37,7 @@ defineProps<{
   margin-bottom: 1rem;
   max-height: 300px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 </style>
