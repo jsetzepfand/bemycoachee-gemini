@@ -1,0 +1,22 @@
+:root {
+  --color-background: #ffffff;
+  --color-text: #333333;
+  --color-primary: hsla(160, 100%, 37%, 1);
+  --color-border: #ccc;
+  --color-surface: #f9f9f9;
+}
+
+[data-theme='dark'] {
+  --color-background: #121212;
+  --color-text: #ffffff;
+  --color-primary: hsla(160, 100%, 37%, 1);
+  --color-border: #444444;
+  --color-surface: #1e1e1e;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  transition: background-color 0.3s, color 0.3s;
+}
