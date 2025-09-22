@@ -32,12 +32,15 @@ header {
   position: relative;
   border-bottom: 1px solid var(--color-border);
   padding: 1rem 0;
+  flex-wrap: wrap; /* Allow items to wrap on smaller screens */
 }
 
 nav {
-  width: 100%;
-  font-size: 1rem;
+  font-size: 0.9rem; /* Reduced font size */
   text-align: center;
+  margin-top: 0; /* Remove top margin */
+  flex-grow: 1; /* Allow nav to take available space */
+  padding: 0 1rem;
 }
 
 nav a.router-link-exact-active {
@@ -50,7 +53,7 @@ nav a.router-link-exact-active:hover {
 
 nav a {
   display: inline-block;
-  padding: 0 1rem;
+  padding: 0 0.75rem; /* Adjusted padding */
   border-left: 1px solid var(--color-border);
   color: var(--color-text);
   text-decoration: none;
