@@ -1,54 +1,82 @@
 const express = require('express');
 const cors = require('cors');
+const { ddbDocClient } = require('./db');
+const { QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
-// In-memory store for chat messages
-const messages = [
-  {
-    text: 'Hello! I am your AI Coach. How can I help you today?',
-    sender: 'coach',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-];
+// --- DynamoDB Configuration ---
+// It's a best practice to use environment variables for table names.
+const CHAT_TABLE_NAME = process.env.CHAT_TABLE_NAME || 'bemycoachee-chat-messages';
 
-// GET endpoint to retrieve all messages
-app.get('/api/messages', (req, res) => {
-  res.json(messages);
+// For simplicity in this single-user demo, we'll use a fixed conversation ID.
+// In a real multi-user app, this would be dynamic (e.g., based on the logged-in user).
+const CONVERSATION_ID = 'default-conversation';
+
+// --- API Endpoints ---
+
+// GET endpoint to retrieve all messages for the conversation
+app.get('/api/messages', async (req, res) => {
+  const params = {
+    TableName: CHAT_TABLE_NAME,
+    KeyConditionExpression: 'conversationId = :convId',
+    ExpressionAttributeValues: {
+      ':convId': CONVERSATION_ID,
+    },
+    // Ensures messages are returned in the order they were created
+    ScanIndexForward: true, // true for ascending, false for descending
+  };
+
+  try {
+    const data = await ddbDocClient.send(new QueryCommand(params));
+    res.json(data.Items || []);
+  } catch (err) {
+    console.error("Error fetching messages from DynamoDB:", err);
+    res.status(500).json({ error: 'Could not fetch messages' });
+  }
 });
 
 // POST endpoint to add a new message
-app.post('/api/messages', (req, res) => {
+app.post('/api/messages', async (req, res) => {
   const { text } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: 'Message text is required' });
+  // Security: Basic input validation. Ensure we only process expected data.
+  if (typeof text !== 'string' || text.trim() === '') {
+    return res.status(400).json({ error: 'Message text is required and must be a non-empty string' });
   }
 
   const userMessage = {
-    text,
+    conversationId: CONVERSATION_ID,
+    timestamp: new Date().toISOString(), // Use ISO 8601 for sortable timestamps
     sender: 'user',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    text: text.trim(), // Security: Trim whitespace
   };
-  messages.push(userMessage);
 
-  // Simulate a coach's reply
   const coachReply = {
-    text: `Thank you for sharing. I hear you saying: "${text}". Let's explore that further.`,
+    conversationId: CONVERSATION_ID,
+    timestamp: new Date(new Date().getTime() + 1000).toISOString(), // Ensure coach reply is always after
     sender: 'coach',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    text: `Thank you for sharing. I hear you saying: "${text.trim()}". Let's explore that further.`,
   };
-  
-  // Add the coach's reply after a short delay to feel more natural
-  setTimeout(() => {
-      messages.push(coachReply);
-  }, 1000);
 
-  // Respond immediately with the user's message
-  res.status(201).json(userMessage);
+  try {
+    // Save the user's message to DynamoDB
+    await ddbDocClient.send(new PutCommand({ TableName: CHAT_TABLE_NAME, Item: userMessage }));
+    
+    // Save the coach's reply to DynamoDB
+    await ddbDocClient.send(new PutCommand({ TableName: CHAT_TABLE_NAME, Item: coachReply }));
+
+    // Respond with the message that was created on behalf of the user
+    res.status(201).json(userMessage);
+
+  } catch (err) {
+    console.error("Error saving message to DynamoDB:", err);
+    res.status(500).json({ error: 'Could not save message' });
+  }
 });
 
 app.listen(port, () => {
