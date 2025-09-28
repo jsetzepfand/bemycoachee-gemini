@@ -1,12 +1,20 @@
-import { defineStore } from 'pinia'
+import { defineStore } from 'pinia';
+import { Amplify } from 'aws-amplify';
+import awsExports from '../aws-exports';
+
+// Configure Amplify
+Amplify.configure(awsExports);
 
 interface ChatMessage {
-  text: string
-  sender: 'user' | 'coach'
-  timestamp: string
+  text: string;
+  sender: 'user' | 'coach';
+  timestamp: string;
 }
 
-const API_URL = 'http://localhost:3000/api';
+// Dynamically get the API endpoint from the Amplify configuration
+const apiName = awsExports.aws_cloud_logic_custom[0].name;
+const apiEndpoint = awsExports.aws_cloud_logic_custom[0].endpoint;
+const API_URL = `${apiEndpoint}`;
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -46,7 +54,6 @@ export const useChatStore = defineStore('chat', {
           throw new Error('Failed to send message');
         }
         // After sending, re-fetch all messages to get the updated list
-        // including the user's new message and the coach's reply.
         await this.fetchMessages();
       } catch (e: any) {
         this.error = e.message;
@@ -55,4 +62,4 @@ export const useChatStore = defineStore('chat', {
       }
     }
   }
-})
+});
