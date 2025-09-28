@@ -1,3 +1,2 @@
-// This declaration file tells TypeScript that the aws-exports.js module exists.
-// It prevents build errors when importing this auto-generated JavaScript file.
-declare module '../aws-exports';
+// This file is no longer needed and can be safely deleted.
+// The module declaration has been moved to src/env.d.ts, which is the standard for Vite projects.
