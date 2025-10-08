@@ -17,7 +17,7 @@ const CHAT_TABLE_NAME = process.env.CHAT_TABLE_NAME || 'bemycoachee-chat-message
 // In a real multi-user app, this would be dynamic (e.g., based on the logged-in user).
 const CONVERSATION_ID = 'default-conversation';
 
-// --- API Endpoints ---
+// --- API Endpoints ---/
 
 // GET endpoint to retrieve all messages for the conversation
 app.get('/api/messages', async (req, res) => {
