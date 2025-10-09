@@ -1,8 +1,5 @@
 import { defineStore } from 'pinia';
-import { Amplify } from 'aws-amplify';
-
-// @ts-ignore - This will suppress the TS2306 error during the build.
-import awsExports from '../aws-exports';
+import { get, post } from 'aws-amplify/api';
 
 // --- Interfaces and Constants ---
 interface ChatMessage {
@@ -14,24 +11,18 @@ interface ChatMessage {
 // Vite provides this environment variable. `true` when running `npm run dev`.
 const isDevelopment = import.meta.env.DEV;
 
-// --- Conditional Backend Configuration ---
+// --- Conditional Backend Service Definition ---
 
+// This is a service object that abstracts the backend implementation.
+// The store will call methods on this object, regardless of whether it's the mock or real one.
 let apiService: {
   fetchMessages: () => Promise<ChatMessage[]>;
-  addMessage: (text: string) => Promise<ChatMessage[]>;
+  addMessage: (text: string) => Promise<void>; // Changed to void as we will refetch separately
 };
 
-let API_URL: string | undefined;
-
-const hasAmplifyBackendConfig = (
-  awsExports &&
-  awsExports.aws_cloud_logic_custom &&
-  awsExports.aws_cloud_logic_custom.length > 0
-);
-
-if (isDevelopment || !hasAmplifyBackendConfig) {
-  // --- MOCK BACKEND for Local Development or if no Amplify config is present ---
-  console.log('Running in DEV mode or no Amplify config. Using mock backend for chat.');
+if (isDevelopment) {
+  // --- MOCK BACKEND for Local Development ---
+  console.log('Running in DEV mode. Using mock backend for chat.');
 
   const mockMessages: ChatMessage[] = [
     {
@@ -43,7 +34,7 @@ if (isDevelopment || !hasAmplifyBackendConfig) {
 
   apiService = {
     async fetchMessages() {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
       return [...mockMessages];
     },
     async addMessage(text: string) {
@@ -62,44 +53,34 @@ if (isDevelopment || !hasAmplifyBackendConfig) {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       mockMessages.push(coachReply);
-
-      return [...mockMessages];
     }
   };
 
 } else {
-  // --- REAL BACKEND for Production/Deployment with valid Amplify config ---
-  console.log('Running in PROD mode. Using real Amplify backend.');
+  // --- REAL BACKEND for Production/Deployment ---
+  console.log('Running in PROD mode. Using real Amplify Gen 2 backend.');
 
-  Amplify.configure(awsExports);
-
-  const apiConfig = awsExports.aws_cloud_logic_custom.find(
-    (config: any) => config.name === 'bemycoacheeAPI'
-  );
-
-  if (apiConfig && apiConfig.endpoint) {
-    API_URL = apiConfig.endpoint;
-  } else {
-    console.error('Amplify API endpoint not found in aws-exports. Make sure `amplify push` has been run.');
-  }
+  // This is the name we will give our API in the Gen 2 backend.ts file.
+  const apiName = 'bemycoacheeAPI';
 
   apiService = {
     async fetchMessages() {
-      if (!API_URL) throw new Error('API_URL is not configured.');
-      const response = await fetch(`${API_URL}/messages`);
-      if (!response.ok) throw new Error('Failed to fetch messages');
-      return response.json();
+      const restOperation = get({
+        apiName: apiName,
+        path: '/messages'
+      });
+      const { body } = await restOperation.response;
+      return await body.json();
     },
     async addMessage(text: string) {
-      if (!API_URL) throw new Error('API_URL is not configured.');
-      const postResponse = await fetch(`${API_URL}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+      const restOperation = post({
+        apiName: apiName,
+        path: '/messages',
+        options: {
+          body: { text }
+        }
       });
-      if (!postResponse.ok) throw new Error('Failed to send message');
-      
-      return this.fetchMessages();
+      await restOperation.response;
     }
   };
 }
@@ -128,7 +109,21 @@ export const useChatStore = defineStore('chat', {
       this.isLoading = true;
       this.error = null;
       try {
-        this.messages = await apiService.addMessage(text);
+        // Add the user's message to the list immediately for a better UX
+        const userMessage: ChatMessage = {
+          text,
+          sender: 'user',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        this.messages.push(userMessage);
+
+        // Send the message to the backend
+        await apiService.addMessage(text);
+
+        // After the backend has processed it (and the coach has replied),
+        // re-fetch the entire message list to get the latest state.
+        await this.fetchMessages();
+
       } catch (e: any) {
         this.error = e.message;
       } finally {
