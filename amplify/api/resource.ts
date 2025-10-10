@@ -4,7 +4,7 @@ import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { ConstructFactory, ResourceProvider } from '@aws-amplify/plugin-types';
-import { aws_apigateway } from 'aws-cdk-lib';
+import { aws_apigateway, Stack } from 'aws-cdk-lib';
 
 // This is the CDK Construct that defines our backend infrastructure.
 // It correctly implements the ResourceProvider interface.
@@ -49,7 +49,7 @@ class BemycoacheeApi extends Construct implements ResourceProvider {
 }
 
 // This is the factory object that Amplify Gen 2 requires.
-// It correctly receives the parent scope and instantiates our construct.
+// It correctly receives the parent stack and instantiates our construct.
 export const factory: ConstructFactory<ResourceProvider> = {
-  getInstance: ({ scope }) => new BemycoacheeApi(scope, 'BemycoacheeApi'),
+  getInstance: ({ stack }: { stack: Stack }) => new BemycoacheeApi(stack, 'BemycoacheeApi'),
 };
