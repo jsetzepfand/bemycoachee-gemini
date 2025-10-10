@@ -1,17 +1,16 @@
-import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { ConstructFactory, ResourceProvider } from '@aws-amplify/plugin-types';
+import { ConstructFactory } from '@aws-amplify/plugin-types';
+import { aws_apigateway } from 'aws-cdk-lib';
 
-// This is the internal CDK Stack that defines the infrastructure.
-class ExpressBackendStack extends cdk.Stack {
-  public readonly apiUrl: string;
-
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+// This is the CDK Construct that defines our backend infrastructure.
+// It is not a full Stack, but a component that will be placed within the Amplify-managed stack.
+export class BemycoacheeBackend extends Construct {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
 
     const expressLambda = new NodejsFunction(this, 'BemycoacheeExpressLambda', {
       entry: path.join(__dirname, 'handler.ts'),
@@ -25,32 +24,19 @@ class ExpressBackendStack extends cdk.Stack {
       })
     );
 
-    const api = new RestApi(this, 'BemycoacheeRestApi', {
-      restApiName: 'bemycoacheeAPI',
+    new RestApi(this, 'BemycoacheeRestApi', {
+      restApiName: 'bemycoacheeAPI', // This is the API name your frontend is looking for
+      defaultIntegration: new LambdaIntegration(expressLambda),
       defaultCorsPreflightOptions: {
-        allowOrigins: cdk.aws_apigateway.Cors.ALL_ORIGINS,
-        allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
+        allowOrigins: aws_apigateway.Cors.ALL_ORIGINS,
+        allowMethods: aws_apigateway.Cors.ALL_METHODS,
       },
     });
-
-    const lambdaIntegration = new LambdaIntegration(expressLambda);
-    const messagesResource = api.root.addResource('messages');
-    messagesResource.addMethod('GET', lambdaIntegration);
-    messagesResource.addMethod('POST', lambdaIntegration);
-
-    this.apiUrl = api.url;
   }
 }
 
 // This is the factory object that Amplify Gen 2 requires.
-// It implements the ConstructFactory interface and creates an instance of our stack.
-export const ExpressBackendFactory: ConstructFactory<ResourceProvider> = {
-  getInstance: ({ backend }) => {
-    const stack = new ExpressBackendStack(backend.stack, 'BemycoacheeExpressStack');
-    return {
-      resources: {
-        restApi: stack.apiUrl,
-      },
-    };
-  },
+// It tells Amplify how to instantiate our custom construct.
+export const factory: ConstructFactory<BemycoacheeBackend> = {
+  getInstance: ({ backend }) => new BemycoacheeBackend(backend.stack, 'BemycoacheeBackend'),
 };
