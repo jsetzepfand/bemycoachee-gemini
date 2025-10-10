@@ -1,33 +1,28 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { defineFunction, defineApi } from '@aws-amplify/backend-rest-api';
-import { Stack } from 'aws-cdk-lib';
+import { defineApi } from '@aws-amplify/backend-rest-api';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
-// Create the Lambda function from the handler file
-const expressLambda = defineFunction({
-  entry: './api/handler.ts',
-});
-
-// Create the REST API and link it to the Lambda function
-const api = defineApi({
-  name: 'bemycoacheeAPI',
-  paths: {
-    '/messages': {
-      handler: expressLambda,
-    },
-  },
-});
-
-// Create the backend definition
+// 1. Define the backend
 const backend = defineBackend({
-  api,
+  // 2. Define the API resource
+  api: defineApi({
+    // 3. Define the handler function and grant it permissions
+    handler: {
+      entry: './api/handler.ts',
+      // Grant the function access to the specific DynamoDB table
+      rolePolicies: [
+        (grant) =>
+          grant.addStatements(
+            new PolicyStatement({
+              actions: ['dynamodb:Query', 'dynamodb:PutItem'],
+              resources: ['arn:aws:dynamodb:eu-central-1:315374878108:table/bemycoachee-chat-messages'],
+            })
+          ),
+      ],
+    },
+  }),
 });
 
-// Grant the Lambda function access to the DynamoDB table
-const cfnStack = Stack.of(backend.api.resources.stack);
-const policy = new PolicyStatement({
-  actions: ['dynamodb:Query', 'dynamodb:PutItem'],
-  resources: ['arn:aws:dynamodb:eu-central-1:315374878108:table/bemycoachee-chat-messages'],
-});
-
-backend.api.resources.functions.bemycoacheeAPI.addToRolePolicy(policy);
+// 4. Set the API name and proxy all requests to the handler
+backend.api.resources.restApi.restApiName = 'bemycoacheeAPI';
+backend.api.resources.restApi.root.addProxy({ anyMethod: true });
