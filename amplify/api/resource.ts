@@ -3,49 +3,54 @@ import { Construct } from 'constructs';
 import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
-import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { ConstructFactory, ResourceProvider } from '@aws-amplify/plugin-types';
 
-// This is a custom CDK stack that defines our Express backend infrastructure.
-export class ExpressBackendStack extends cdk.Stack {
+// This is the internal CDK Stack that defines the infrastructure.
+class ExpressBackendStack extends cdk.Stack {
+  public readonly apiUrl: string;
+
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // 1. Define the Lambda function that will run our Express app
     const expressLambda = new NodejsFunction(this, 'BemycoacheeExpressLambda', {
-      entry: path.join(__dirname, 'handler.ts'), // Points to our Express handler file
-      handler: 'handler', // The exported object from handler.ts
+      entry: path.join(__dirname, 'handler.ts'),
+      handler: 'handler',
     });
 
-    // 2. Grant the Lambda function permission to access the DynamoDB table
     expressLambda.addToRolePolicy(
       new PolicyStatement({
-        actions: [
-          'dynamodb:Query',
-          'dynamodb:GetItem',
-          'dynamodb:PutItem',
-          'dynamodb:UpdateItem',
-          'dynamodb:DeleteItem',
-        ],
-        // The ARN (Amazon Resource Name) of your specific DynamoDB table.
+        actions: ['dynamodb:Query', 'dynamodb:PutItem'],
         resources: ['arn:aws:dynamodb:eu-central-1:315374878108:table/bemycoachee-chat-messages'],
       })
     );
 
-    // 3. Define the API Gateway REST API
     const api = new RestApi(this, 'BemycoacheeRestApi', {
-      restApiName: 'bemycoacheeAPI', // This is the API name your frontend is looking for
+      restApiName: 'bemycoacheeAPI',
       defaultCorsPreflightOptions: {
         allowOrigins: cdk.aws_apigateway.Cors.ALL_ORIGINS,
         allowMethods: cdk.aws_apigateway.Cors.ALL_METHODS,
       },
     });
 
-    // 4. Create an integration between the API Gateway and the Lambda function
     const lambdaIntegration = new LambdaIntegration(expressLambda);
-
-    // 5. Define the /messages resource and its methods
     const messagesResource = api.root.addResource('messages');
-    messagesResource.addMethod('GET', lambdaIntegration); // GET /messages -> Lambda
-    messagesResource.addMethod('POST', lambdaIntegration); // POST /messages -> Lambda
+    messagesResource.addMethod('GET', lambdaIntegration);
+    messagesResource.addMethod('POST', lambdaIntegration);
+
+    this.apiUrl = api.url;
   }
 }
+
+// This is the factory object that Amplify Gen 2 requires.
+// It implements the ConstructFactory interface and creates an instance of our stack.
+export const ExpressBackendFactory: ConstructFactory<ResourceProvider> = {
+  getInstance: ({ backend }) => {
+    const stack = new ExpressBackendStack(backend.stack, 'BemycoacheeExpressStack');
+    return {
+      resources: {
+        restApi: stack.apiUrl,
+      },
+    };
+  },
+};
