@@ -1,11 +1,7 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { auth } from './auth/resource';
-import { data } from './data/resource';
+import { api } from './api/resource'; // Import the API resource we defined
 
-/**
- * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
- */
-defineBackend({
-  auth,
-  data,
+// This is the main backend definition
+const backend = defineBackend({
+  api, // Include the api resource in the backend
 });
