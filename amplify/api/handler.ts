@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 
@@ -17,7 +17,7 @@ const CONVERSATION_ID = 'default-conversation';
 // --- API Endpoints ---
 
 // GET /messages - Retrieves all messages
-app.get('/messages', async (req, res) => {
+app.get('/messages', async (req: Request, res: Response) => {
   const params = {
     TableName: CHAT_TABLE_NAME,
     KeyConditionExpression: 'conversationId = :convId',
@@ -35,7 +35,7 @@ app.get('/messages', async (req, res) => {
 });
 
 // POST /messages - Adds a new message and a coach reply
-app.post('/messages', async (req, res) => {
+app.post('/messages', async (req: Request, res: Response) => {
   const { text } = req.body;
 
   if (typeof text !== 'string' || text.trim() === '') {

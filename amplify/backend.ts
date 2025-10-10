@@ -1,7 +1,9 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { api } from './api/resource'; // Import the API resource we defined
+import { ExpressBackendStack } from './api/resource';
 
-// This is the main backend definition
+// This is the main backend definition file.
 const backend = defineBackend({
-  api, // Include the api resource in the backend
+  // We are defining our Express backend as a custom resource using the CDK stack we created.
+  // The name 'BemycoacheeExpressStack' is an identifier for this resource within the Amplify project.
+  BemycoacheeExpressStack: new ExpressBackendStack(this, 'BemycoacheeExpressStack'),
 });
