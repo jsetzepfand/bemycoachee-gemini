@@ -1,6 +1,5 @@
-import { defineBackend } from '@aws-amplify/backend';
-import { defineApi } from '@aws-amplify/backend-rest-api';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { defineBackend, defineApi } from '@aws-amplify/backend';
+import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 // 1. Define the backend
 const backend = defineBackend({
@@ -11,7 +10,7 @@ const backend = defineBackend({
       entry: './api/handler.ts',
       // Grant the function access to the specific DynamoDB table
       rolePolicies: [
-        (grant) =>
+        (grant: Policy) =>
           grant.addStatements(
             new PolicyStatement({
               actions: ['dynamodb:Query', 'dynamodb:PutItem'],
