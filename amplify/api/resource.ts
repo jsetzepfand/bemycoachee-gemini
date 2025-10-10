@@ -3,12 +3,18 @@ import * as path from 'path';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { LambdaIntegration, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
-import { ConstructFactory } from '@aws-amplify/plugin-types';
+import { ConstructFactory, ResourceProvider } from '@aws-amplify/plugin-types';
 import { aws_apigateway } from 'aws-cdk-lib';
 
 // This is the CDK Construct that defines our backend infrastructure.
-// It is not a full Stack, but a component that will be placed within the Amplify-managed stack.
-export class BemycoacheeBackend extends Construct {
+// It correctly implements the ResourceProvider interface.
+class BemycoacheeApi extends Construct implements ResourceProvider {
+  // The 'resources' property is what makes this a valid ResourceProvider.
+  // It exposes the underlying CDK resources to the Amplify system.
+  public readonly resources: {
+    restApi: RestApi;
+  };
+
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
@@ -24,19 +30,26 @@ export class BemycoacheeBackend extends Construct {
       })
     );
 
-    new RestApi(this, 'BemycoacheeRestApi', {
-      restApiName: 'bemycoacheeAPI', // This is the API name your frontend is looking for
+    const api = new RestApi(this, 'BemycoacheeRestApi', {
+      restApiName: 'bemycoacheeAPI',
       defaultIntegration: new LambdaIntegration(expressLambda),
       defaultCorsPreflightOptions: {
         allowOrigins: aws_apigateway.Cors.ALL_ORIGINS,
         allowMethods: aws_apigateway.Cors.ALL_METHODS,
       },
     });
+
+    // This proxies all requests (e.g., /messages) to the Express app
+    api.root.addProxy({ anyMethod: true });
+
+    this.resources = {
+      restApi: api,
+    };
   }
 }
 
 // This is the factory object that Amplify Gen 2 requires.
-// It tells Amplify how to instantiate our custom construct.
-export const factory: ConstructFactory<BemycoacheeBackend> = {
-  getInstance: ({ backend }) => new BemycoacheeBackend(backend.stack, 'BemycoacheeBackend'),
+// It correctly receives the parent scope and instantiates our construct.
+export const factory: ConstructFactory<ResourceProvider> = {
+  getInstance: ({ scope }) => new BemycoacheeApi(scope, 'BemycoacheeApi'),
 };
