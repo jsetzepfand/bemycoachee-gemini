@@ -1,38 +1,30 @@
+
 import { defineBackend } from "@aws-amplify/backend";
-import {
-  HttpApi, HttpMethod, CorsHttpMethod
-} from "aws-cdk-lib/aws-apigatewayv2";
-import {
-  HttpLambdaIntegration
-} from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import {
-  HttpIamAuthorizer, HttpUserPoolAuthorizer
-} from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+import { HttpApi, HttpMethod, CorsHttpMethod } from "aws-cdk-lib/aws-apigatewayv2";
+import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
+// If you already create functions elsewhere, reuse them; this is just a minimal example.
+const backend = defineBackend({});
 
-// 1. Define the backend
-const backend = defineBackend({
-  // 2. Define the HTTP API resource
-  api: defineHttpApi({
-    name: 'bemycoacheeAPI', // This is the API name the frontend will use
-    // 3. Define the handler function for all paths
-    handler: {
-      entry: './api/handler.ts',
-      // 4. Grant the function access to the DynamoDB table
-      rolePolicies: [
-        (grant) =>
-          grant.addStatements(
-            new PolicyStatement({
-              actions: ['dynamodb:Query', 'dynamodb:PutItem'],
-              resources: ['arn:aws:dynamodb:eu-central-1:315374878108:table/bemycoachee-chat-messages'],
-            })
-          ),
-      ],
+backend.addStack("api", (stack) => {
+  const helloFn = new NodejsFunction(stack, "HelloFn", {
+    entry: "amplify/functions/hello/handler.ts", // <-- point to your handler
+  });
+
+  const api = new HttpApi(stack, "HttpApi", {
+    corsPreflight: {
+      allowMethods: [CorsHttpMethod.ANY],
+      allowOrigins: ["*"],
+      allowHeaders: ["*"],
     },
-  }),
+  });
+
+  api.addRoutes({
+    path: "/hello",
+    methods: [HttpMethod.GET],
+    integration: new HttpLambdaIntegration("HelloIntegration", helloFn),
+  });
 });
 
-// 5. Set a default authorization rule for the API to allow public access
-backend.api.resources.cfnResources.cfnHttpApi.defaultAuthorization = {
-  authorizationType: 'NONE',
-};
+export default backend;
