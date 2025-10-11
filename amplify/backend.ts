@@ -1,6 +1,14 @@
-import { defineBackend } from '@aws-amplify/backend';
-import { defineHttpApi } from '@aws-amplify/backend-http';
-import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { defineBackend } from "@aws-amplify/backend";
+import {
+  HttpApi, HttpMethod, CorsHttpMethod
+} from "aws-cdk-lib/aws-apigatewayv2";
+import {
+  HttpLambdaIntegration
+} from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import {
+  HttpIamAuthorizer, HttpUserPoolAuthorizer
+} from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+
 
 // 1. Define the backend
 const backend = defineBackend({
