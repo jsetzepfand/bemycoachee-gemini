@@ -1,16 +1,18 @@
-import { defineBackend, defineApi } from '@aws-amplify/backend';
-import { Policy, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { defineBackend } from '@aws-amplify/backend';
+import { defineHttpApi } from '@aws-amplify/backend-http';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 // 1. Define the backend
 const backend = defineBackend({
-  // 2. Define the API resource
-  api: defineApi({
-    // 3. Define the handler function and grant it permissions
+  // 2. Define the HTTP API resource
+  api: defineHttpApi({
+    name: 'bemycoacheeAPI',
+    // 3. Define the handler function for all paths
     handler: {
       entry: './api/handler.ts',
-      // Grant the function access to the specific DynamoDB table
+      // 4. Grant the function access to the DynamoDB table
       rolePolicies: [
-        (grant: Policy) =>
+        (grant) =>
           grant.addStatements(
             new PolicyStatement({
               actions: ['dynamodb:Query', 'dynamodb:PutItem'],
@@ -22,6 +24,7 @@ const backend = defineBackend({
   }),
 });
 
-// 4. Set the API name and proxy all requests to the handler
-backend.api.resources.restApi.restApiName = 'bemycoacheeAPI';
-backend.api.resources.restApi.root.addProxy({ anyMethod: true });
+// 5. Set a default authorization rule for the API
+backend.api.resources.cfnResources.cfnHttpApi.defaultAuthorization = {
+  authorizationType: 'NONE',
+};

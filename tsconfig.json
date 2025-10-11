@@ -1,5 +1,6 @@
 {
   "files": [],
+  "exclude": ["amplify/**/*"],
   "references": [
     {
       "path": "./tsconfig.node.json"
