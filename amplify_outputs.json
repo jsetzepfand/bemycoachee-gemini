@@ -1,0 +1,12 @@
+{
+  "version": "1.4",
+  "custom": {
+    "API": {
+      "messagesApi": {
+        "endpoint": "https://64gqx5a1l1.execute-api.eu-central-1.amazonaws.com/",
+        "region": "eu-central-1",
+        "apiName": "messagesApi"
+      }
+    }
+  }
+}
