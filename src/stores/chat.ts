@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import { get, post } from 'aws-amplify/api';
 
 // --- Interfaces and Constants ---
 interface ChatMessage {
