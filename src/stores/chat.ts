@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // --- Interfaces and Constants ---
 interface ChatMessage {
@@ -7,54 +8,77 @@ interface ChatMessage {
   timestamp: string;
 }
 
-// --- Mock Backend Service ---
+// --- AI Service Initialization ---
 
-// This is a service object that abstracts the backend implementation.
-// For now, it's a mock service that simulates API calls.
+let genAI: GoogleGenerativeAI | null = null;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
 
-const mockMessages: ChatMessage[] = [
-  {
-    text: 'Hello! I am your AI Coach (mock). How can I help you today?',
-    sender: 'coach',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-];
-
-// This function simulates calling an AI service.
-// It returns a canned response after a short delay.
-async function getMockAiResponse(userMessage: string): Promise<string> {
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate AI thinking time
-  return `(Mock) I hear you saying: "${userMessage}". Let's explore that. What comes to mind when you think about that?`;
+if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY') {
+  console.warn(
+    'VITE_GEMINI_API_KEY is not set correctly in .env file. Using mock AI response.'
+  );
+} else {
+  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 }
+
+// --- AI Service Call ---
+
+async function getAiCoachResponse(userMessage: string): Promise<string> {
+  if (!genAI) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return `(Mock AI) I hear you saying: "${userMessage}". Let's explore that.`;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const prompt = `You are an AI coach. Be supportive and brief. End with a question. The user says: "${userMessage}"`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+
+    if (response.promptFeedback?.blockReason) {
+      const blockReason = response.promptFeedback.blockReason;
+      console.error(`Prompt was blocked by Google's safety filters. Reason: ${blockReason}`);
+      return `My response was blocked due to: ${blockReason}. Could you please rephrase your message?`;
+    }
+
+    return response.text();
+  } catch (error) {
+    console.error('Error calling Google AI API:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    return `I'm having trouble connecting to the AI service. The API returned an error: ${errorMessage}`;
+  }
+}
+
+// --- Backend Service (Now using a real mock server) ---
+
+const isDevelopment = import.meta.env.DEV;
+const MOCK_API_URL = 'http://localhost:3000/api';
 
 const apiService = {
   async fetchMessages(): Promise<ChatMessage[]> {
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-    return [...mockMessages];
+    if (isDevelopment) {
+      const response = await fetch(`${MOCK_API_URL}/messages`);
+      if (!response.ok) throw new Error('Failed to fetch from mock API');
+      return response.json();
+    } else {
+      // This is where you would put your real production API call
+      console.log('In production, would fetch from real backend');
+      return []; 
+    }
   },
 
-  async sendMessage(text: string): Promise<ChatMessage> {
-    // 1. In a real backend, we would save the user message to the database here.
-    const userMessage: ChatMessage = {
-      text,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    mockMessages.push(userMessage);
-
-    // 2. Get the AI coach's response
-    const coachReplyText = await getMockAiResponse(text);
-    const coachMessage: ChatMessage = {
-      text: coachReplyText,
-      sender: 'coach',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    
-    // 3. In a real backend, we would save the coach's message to the database here.
-    mockMessages.push(coachMessage);
-
-    // 4. Return the coach's message to the frontend.
-    return coachMessage;
+  async saveMessages(userMessage: ChatMessage, coachMessage: ChatMessage): Promise<void> {
+    if (isDevelopment) {
+      await fetch(`${MOCK_API_URL}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userMessage, coachMessage }),
+      });
+    } else {
+      // This is where you would put your real production API call
+      console.log('In production, would save to real backend');
+    }
   }
 };
 
@@ -64,7 +88,7 @@ export const useChatStore = defineStore('chat', {
   state: () => ({
     messages: [] as ChatMessage[],
     isLoading: false,
-    error: null as string | null,
+    error: null as string | null
   }),
   actions: {
     async fetchMessages() {
@@ -73,11 +97,7 @@ export const useChatStore = defineStore('chat', {
       try {
         this.messages = await apiService.fetchMessages();
       } catch (e) {
-        if (e instanceof Error) {
-          this.error = e.message;
-        } else {
-          this.error = 'An unknown error occurred';
-        }
+        this.error = e instanceof Error ? e.message : 'An unknown error occurred';
       } finally {
         this.isLoading = false;
       }
@@ -86,27 +106,26 @@ export const useChatStore = defineStore('chat', {
     async sendMessage(text: string) {
       this.isLoading = true;
       this.error = null;
+
+      const userMessage: ChatMessage = {
+        text,
+        sender: 'user',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      this.messages.push(userMessage);
+
       try {
-        // Add the user's message to the list immediately for a better UX
-        const userMessage: ChatMessage = {
-          text,
-          sender: 'user',
+        const coachReplyText = await getAiCoachResponse(text);
+        const coachMessage: ChatMessage = {
+          text: coachReplyText,
+          sender: 'coach',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
-        this.messages.push(userMessage);
-
-        // Send the message to the backend and wait for the coach's reply
-        const coachMessage = await apiService.sendMessage(text);
-
-        // Add the coach's reply to the list
         this.messages.push(coachMessage);
 
+        await apiService.saveMessages(userMessage, coachMessage);
       } catch (e) {
-        if (e instanceof Error) {
-          this.error = e.message;
-        } else {
-          this.error = 'An unknown error occurred';
-        }
+        this.error = e instanceof Error ? e.message : 'An unknown error occurred';
       } finally {
         this.isLoading = false;
       }

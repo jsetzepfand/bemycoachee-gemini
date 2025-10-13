@@ -11,8 +11,8 @@ onMounted(() => {
 })
 
 function handleSendMessage(message: string) {
-  // The store action now only needs the message text
-  chatStore.addMessage(message)
+  // The store action was renamed to `sendMessage`
+  chatStore.sendMessage(message)
 }
 </script>
 

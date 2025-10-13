@@ -1,0 +1,59 @@
+{
+  "messages": [
+    {
+      "text": "Hello! I am your AI Coach. Our chat is now being saved to a local file. How can I help you today?",
+      "sender": "coach",
+      "timestamp": "12:00 PM"
+    },
+    {
+      "text": "lets see",
+      "sender": "user",
+      "timestamp": "19:00"
+    },
+    {
+      "text": "I'm having trouble connecting to the AI service. The API returned an error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+      "sender": "coach",
+      "timestamp": "19:00"
+    },
+    {
+      "text": "try again",
+      "sender": "user",
+      "timestamp": "19:03"
+    },
+    {
+      "text": "That's the spirit! What are you focusing on this time?",
+      "sender": "coach",
+      "timestamp": "19:03"
+    },
+    {
+      "text": "I am focussing on teaching my AI to code",
+      "sender": "user",
+      "timestamp": "19:03"
+    },
+    {
+      "text": "That's a fantastic goal! Teaching an AI to code is incredibly innovative.\n\nWhat aspect are you enjoying most about the process so far?",
+      "sender": "coach",
+      "timestamp": "19:03"
+    },
+    {
+      "text": "the most I enjoy how I manage to deal with the stupidity of the AI",
+      "sender": "user",
+      "timestamp": "19:06"
+    },
+    {
+      "text": "It's great you find such satisfaction in navigating those challenges! What's your most effective technique for \"dealing with\" it?",
+      "sender": "coach",
+      "timestamp": "19:06"
+    },
+    {
+      "text": "shouting and swearing with it",
+      "sender": "user",
+      "timestamp": "19:06"
+    },
+    {
+      "text": "That sounds incredibly challenging. What's one small step you might take to shift the dynamic?",
+      "sender": "coach",
+      "timestamp": "19:06"
+    }
+  ]
+}
