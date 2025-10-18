@@ -2,6 +2,13 @@ import { defineStore } from 'pinia';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // --- Interfaces and Constants ---
+interface ApiChatMessage {
+  conversationId: string;
+  timestamp: string;
+  sender: { id: string; name: string } | null;
+  text: string;
+}
+
 interface ChatMessage {
   text: string;
   sender: 'user' | 'coach';
@@ -50,35 +57,29 @@ async function getAiCoachResponse(userMessage: string): Promise<string> {
   }
 }
 
-// --- Backend Service (Now using a real mock server) ---
+// --- Backend Service ---
 
-const isDevelopment = import.meta.env.DEV;
-const MOCK_API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://g6ewdsfzsz.eu-central-1.awsapprunner.com';
 
 const apiService = {
-  async fetchMessages(): Promise<ChatMessage[]> {
-    if (isDevelopment) {
-      const response = await fetch(`${MOCK_API_URL}/messages`);
-      if (!response.ok) throw new Error('Failed to fetch from mock API');
-      return response.json();
-    } else {
-      // This is where you would put your real production API call
-      console.log('In production, would fetch from real backend');
-      return []; 
-    }
+  async fetchMessages(conversationId: string): Promise<ChatMessage[]> {
+    const response = await fetch(`${API_URL}/messages/${conversationId}`);
+    if (!response.ok) throw new Error('Failed to fetch from the backend API');
+    const apiMessages: ApiChatMessage[] = await response.json();
+
+    return apiMessages.map((msg) => ({
+      ...msg,
+      sender: msg.sender?.id === 'user' ? 'user' : 'coach',
+      timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }));
   },
 
-  async saveMessages(userMessage: ChatMessage, coachMessage: ChatMessage): Promise<void> {
-    if (isDevelopment) {
-      await fetch(`${MOCK_API_URL}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userMessage, coachMessage }),
-      });
-    } else {
-      // This is where you would put your real production API call
-      console.log('In production, would save to real backend');
-    }
+  async saveMessage(message: object): Promise<void> {
+    await fetch(`${API_URL}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(message),
+    });
   }
 };
 
@@ -88,14 +89,29 @@ export const useChatStore = defineStore('chat', {
   state: () => ({
     messages: [] as ChatMessage[],
     isLoading: false,
-    error: null as string | null
+    error: null as string | null,
+    conversationId: null as string | null, // Can be null for a new chat
   }),
   actions: {
-    async fetchMessages() {
+    async loadConversation(id: string | undefined) {
       this.isLoading = true;
       this.error = null;
       try {
-        this.messages = await apiService.fetchMessages();
+        if (id) {
+          // Load an existing conversation
+          this.conversationId = id;
+          this.messages = await apiService.fetchMessages(id);
+        } else {
+          // Start a new conversation
+          this.conversationId = null;
+          this.messages = [
+            {
+              text: 'This is a new conversation. Send a message to begin!',
+              sender: 'coach',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }
+          ];
+        }
       } catch (e) {
         this.error = e instanceof Error ? e.message : 'An unknown error occurred';
       } finally {
@@ -104,6 +120,13 @@ export const useChatStore = defineStore('chat', {
     },
 
     async sendMessage(text: string) {
+      if (!this.conversationId) {
+        // If there's no ID, create a new one. This is a new conversation.
+        this.conversationId = `convo_${Date.now()}`;
+        // Clear the initial "start new conversation" message
+        this.messages = [];
+      }
+
       this.isLoading = true;
       this.error = null;
 
@@ -115,6 +138,13 @@ export const useChatStore = defineStore('chat', {
       this.messages.push(userMessage);
 
       try {
+        await apiService.saveMessage({
+          conversationId: this.conversationId,
+          text: userMessage.text,
+          sender: { id: 'user', name: 'User' },
+          timestamp: new Date().toISOString(),
+        });
+
         const coachReplyText = await getAiCoachResponse(text);
         const coachMessage: ChatMessage = {
           text: coachReplyText,
@@ -123,7 +153,13 @@ export const useChatStore = defineStore('chat', {
         };
         this.messages.push(coachMessage);
 
-        await apiService.saveMessages(userMessage, coachMessage);
+        await apiService.saveMessage({
+          conversationId: this.conversationId,
+          text: coachMessage.text,
+          sender: { id: 'coach', name: 'AI Coach' },
+          timestamp: new Date().toISOString(),
+        });
+
       } catch (e) {
         this.error = e instanceof Error ? e.message : 'An unknown error occurred';
       } finally {
