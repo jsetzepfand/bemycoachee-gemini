@@ -1,17 +1,23 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { computed } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import ThemeToggle from './components/ThemeToggle.vue'
 import { useTheme } from './composables/useTheme'
 
 // Initialize the theme as soon as the app loads
 useTheme()
+
+const route = useRoute()
+
+// This will be true if the current URL starts with /coaching
+const isCoachingActive = computed(() => route.path.startsWith('/coaching'))
 </script>
 
 <template>
   <header>
     <nav>
       <RouterLink to="/">Home</RouterLink>
-      <RouterLink to="/coaching">Coaching</RouterLink>
+      <RouterLink to="/coaching" :class="{ 'coaching-link-active': isCoachingActive }">Coaching</RouterLink>
       <RouterLink to="/archive">Archive</RouterLink>
       <RouterLink to="/pricing">Pricing</RouterLink>
       <RouterLink to="/contact">Contact</RouterLink>
@@ -61,19 +67,15 @@ nav a:hover {
   background-color: transparent;
 }
 
-/* --- CORRECTED STYLES --- */
+/* --- FINAL CORRECTED STYLES --- */
 
 /* 1. Style links that are an EXACT match (works for Home, Pricing, etc.) */
 nav a.router-link-exact-active {
   color: var(--color-primary);
 }
 
-/* 2. ALSO style the Coaching link when it is a PARTIAL match */
-nav a[href^="/coaching"].router-link-active {
+/* 2. ALSO style the Coaching link using our custom JavaScript-driven class */
+nav a.coaching-link-active {
   color: var(--color-primary);
-}
-
-main {
-  padding: 2rem;
 }
 </style>
