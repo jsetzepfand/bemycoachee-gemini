@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BookingWidget from '../components/BookingWidget.vue'
+import { RouterLink } from 'vue-router'
 </script>
 
 <template>
@@ -11,6 +12,9 @@ import BookingWidget from '../components/BookingWidget.vue'
         Whether you're looking to improve your career, your relationships, or your personal well-being,
         our AI coach is here to guide you every step of the way.
       </p>
+      <div class="hero-actions">
+        <RouterLink to="/auth" class="button primary">Get Started</RouterLink>
+      </div>
     </section>
 
     <section class="features">
@@ -57,6 +61,28 @@ import BookingWidget from '../components/BookingWidget.vue'
   font-size: 1.25rem;
   color: var(--color-text);
   opacity: 0.8;
+}
+
+.hero-actions {
+  margin-top: 2rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.button.primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.button.primary:hover {
+  background-color: var(--color-primary-dark);
 }
 
 .features {

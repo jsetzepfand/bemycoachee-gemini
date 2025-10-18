@@ -3,7 +3,9 @@ import LandingView from '../views/LandingView.vue'
 import CoachingView from '../views/CoachingView.vue'
 import PricingView from '../views/PricingView.vue'
 import ContactView from '../views/ContactView.vue'
-import ArchiveView from '../views/ArchiveView.vue' // Import the new view
+import ArchiveView from '../views/ArchiveView.vue'
+import AuthView from '../views/AuthView.vue' // Import the new AuthView
+import { useUserStore } from '../stores/user' // Import the user store
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,11 +16,11 @@ const router = createRouter({
       component: LandingView
     },
     {
-      // Updated route to accept an optional conversationId parameter
       path: '/coaching/:conversationId?',
       name: 'coaching',
       component: CoachingView,
-      props: true // Pass route params as component props
+      props: true,
+      meta: { requiresAuth: true } // Protect this route
     },
     {
       path: '/pricing',
@@ -31,12 +33,32 @@ const router = createRouter({
       component: ContactView
     },
     {
-      // Add the new archive route
       path: '/archive',
       name: 'archive',
-      component: ArchiveView
+      component: ArchiveView,
+      meta: { requiresAuth: true } // Protect this route
+    },
+    {
+      path: '/auth',
+      name: 'auth',
+      component: AuthView
     }
   ]
 })
+
+router.beforeEach((to, from, next) => {
+  const userStore = useUserStore();
+  userStore.initializeAuth(); // Attempt to load auth state from localStorage
+
+  if (to.meta.requiresAuth && !userStore.isAuthenticated) {
+    // If route requires auth and user is not authenticated, redirect to login page
+    next({ name: 'auth' });
+  } else if (to.name === 'auth' && userStore.isAuthenticated) {
+    // If user is authenticated and tries to go to login/register, redirect to home
+    next({ name: 'landing' });
+  } else {
+    next(); // Proceed to route
+  }
+});
 
 export default router
