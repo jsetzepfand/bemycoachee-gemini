@@ -29,7 +29,7 @@ export const useUserStore = defineStore('user', {
       this.isLoading = true;
       this.authError = null;
       try {
-        const response = await fetch(`${API_BASE_URL}/register`, {
+        const response = await fetch(`${API_BASE_URL}/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, email, password }),
@@ -55,7 +55,7 @@ export const useUserStore = defineStore('user', {
       this.isLoading = true;
       this.authError = null;
       try {
-        const response = await fetch(`${API_BASE_URL}/login`, {
+        const response = await fetch(`${API_BASE_URL}/users/login`, { // Corrected endpoint
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password }),
