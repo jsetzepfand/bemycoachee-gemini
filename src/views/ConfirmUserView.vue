@@ -60,6 +60,7 @@ onUnmounted(() => {
 });
 
 async function handleConfirm() {
+  userStore.authError = null; // Clear previous errors before a new attempt
   resendMessage.value = ''; // Clear resend message on new attempt
   const success = await userStore.confirmUser(username.value, confirmationCode.value);
   if (success) {

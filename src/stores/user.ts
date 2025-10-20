@@ -4,17 +4,35 @@ interface User {
   id: string;
   username: string;
   email: string;
-  name?: string;
-  givenName?: string;
+  name?: string; // Last Name
+  givenName?: string; // First Name
 }
 
+// This interface now matches the backend response
 interface AuthResponse {
-  token: string;
-  userId: string;
-  username: string;
-  email: string;
-  name?: string;
-  givenName?: string;
+  idToken: string;
+  refreshToken: string;
+  accessToken: string;
+}
+
+// Helper function to decode JWT payload
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(function (c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        })
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    console.error("Failed to decode JWT", e);
+    return null;
+  }
 }
 
 const API_BASE_URL = 'https://g6ewdsfzsz.eu-central-1.awsapprunner.com'; // Your backend API base URL
@@ -40,9 +58,9 @@ export const useUserStore = defineStore('user', {
             username,
             email,
             password,
-            name: name, // Maps to "gross"
-            givenname: givenName // Maps to "benno"
-          }), // Use flat structure as confirmed
+            name: name,
+            givenname: givenName
+          }),
         });
 
         if (!response.ok) {
@@ -63,7 +81,7 @@ export const useUserStore = defineStore('user', {
       this.isLoading = true;
       this.authError = null;
       try {
-        const response = await fetch(`${API_BASE_URL}/users/confirm`, {
+        const response = await fetch(`${API_BASE_URL}/users/confirmUser`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, confirmationCode }),
@@ -87,7 +105,7 @@ export const useUserStore = defineStore('user', {
       this.isLoading = true;
       this.authError = null;
       try {
-        const response = await fetch(`${API_BASE_URL}/users/resend-confirmation`, { // Corrected endpoint
+        const response = await fetch(`${API_BASE_URL}/users/resend-confirmation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username }),
@@ -119,7 +137,6 @@ export const useUserStore = defineStore('user', {
 
         if (!response.ok) {
           const errorData = await response.json();
-          // Check for the specific "User is not confirmed" error from your backend
           if (errorData.message === 'User is not confirmed') {
             return 'UNCONFIRMED';
           }
@@ -127,16 +144,27 @@ export const useUserStore = defineStore('user', {
         }
 
         const data: AuthResponse = await response.json();
-        this.jwtToken = data.token;
+        this.jwtToken = data.idToken; // Use idToken from the response
+
+        const decodedToken = parseJwt(data.idToken);
+        if (!decodedToken) {
+          throw new Error('Invalid token received from server.');
+        }
+
         this.user = { 
-          id: data.userId, 
-          username: data.username, 
-          email: data.email,
-          name: data.name,
-          givenName: data.givenName
+          id: decodedToken.sub, // 'sub' is the standard JWT claim for user ID
+          username: decodedToken['cognito:username'] || decodedToken.username,
+          email: decodedToken.email,
+          name: decodedToken.name, // Map 'name' claim to last name
+          givenName: decodedToken.given_name // Map 'given_name' claim to first name
         };
+
+        if (!this.user.id || !this.user.username) {
+          throw new Error('Token did not contain valid user information.');
+        }
+
         this.isAuthenticated = true;
-        localStorage.setItem('jwtToken', data.token);
+        localStorage.setItem('jwtToken', data.idToken); // Store the idToken
         localStorage.setItem('user', JSON.stringify(this.user));
         this.isLoading = false;
         return 'SUCCESS';
@@ -162,12 +190,14 @@ export const useUserStore = defineStore('user', {
       if (token && userJson) {
         try {
           const user: User = JSON.parse(userJson);
-          this.jwtToken = token;
-          this.user = user;
-          this.isAuthenticated = true;
+          if (user && user.id && user.username) {
+            this.jwtToken = token;
+            this.user = user;
+            this.isAuthenticated = true;
+          }
         } catch (e) {
           console.error('Failed to parse user data from localStorage', e);
-          this.logout(); // Clear potentially corrupted data
+          this.logout();
         }
       }
     },

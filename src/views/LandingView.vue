@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import BookingWidget from '../components/BookingWidget.vue'
 import { RouterLink } from 'vue-router'
+import { useUserStore } from '../stores/user' // Import the user store
+
+const userStore = useUserStore() // Get the user store instance
 </script>
 
 <template>
@@ -13,7 +16,9 @@ import { RouterLink } from 'vue-router'
         our AI coach is here to guide you every step of the way.
       </p>
       <div class="hero-actions">
-        <RouterLink to="/auth" class="button primary">Get Started</RouterLink>
+        <!-- Conditionally render the button based on authentication state -->
+        <RouterLink v-if="userStore.isAuthenticated" to="/coaching" class="button primary">Go to Coaching</RouterLink>
+        <RouterLink v-else to="/auth" class="button primary">Get Started</RouterLink>
       </div>
     </section>
 

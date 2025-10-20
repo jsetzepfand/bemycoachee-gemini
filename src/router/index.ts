@@ -54,7 +54,7 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore();
-  userStore.initializeAuth(); // Attempt to load auth state from localStorage
+  // DO NOT initialize auth here. It is now done in App.vue
 
   if (to.meta.requiresAuth && !userStore.isAuthenticated) {
     // If route requires auth and user is not authenticated, redirect to login page
