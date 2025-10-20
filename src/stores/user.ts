@@ -59,7 +59,55 @@ export const useUserStore = defineStore('user', {
       }
     },
 
-    async login(username: string, password: string): Promise<boolean> {
+    async confirmUser(username: string, confirmationCode: string): Promise<boolean> {
+      this.isLoading = true;
+      this.authError = null;
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, confirmationCode }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Confirmation failed');
+        }
+
+        this.isLoading = false;
+        return true;
+      } catch (error) {
+        this.authError = error instanceof Error ? error.message : 'An unknown error occurred during confirmation';
+        this.isLoading = false;
+        return false;
+      }
+    },
+
+    async resendConfirmationCode(username: string): Promise<boolean> {
+      this.isLoading = true;
+      this.authError = null;
+      try {
+        const response = await fetch(`${API_BASE_URL}/users/resend-confirmation`, { // Corrected endpoint
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to resend code');
+        }
+
+        this.isLoading = false;
+        return true;
+      } catch (error) {
+        this.authError = error instanceof Error ? error.message : 'An unknown error occurred while resending the code';
+        this.isLoading = false;
+        return false;
+      }
+    },
+
+    async login(username: string, password: string): Promise<'SUCCESS' | 'UNCONFIRMED' | 'FAILED'> {
       this.isLoading = true;
       this.authError = null;
       try {
@@ -71,6 +119,10 @@ export const useUserStore = defineStore('user', {
 
         if (!response.ok) {
           const errorData = await response.json();
+          // Check for the specific "User is not confirmed" error from your backend
+          if (errorData.message === 'User is not confirmed') {
+            return 'UNCONFIRMED';
+          }
           throw new Error(errorData.message || 'Login failed');
         }
 
@@ -87,11 +139,11 @@ export const useUserStore = defineStore('user', {
         localStorage.setItem('jwtToken', data.token);
         localStorage.setItem('user', JSON.stringify(this.user));
         this.isLoading = false;
-        return true;
+        return 'SUCCESS';
       } catch (error) {
         this.authError = error instanceof Error ? error.message : 'An unknown error occurred during login';
         this.isLoading = false;
-        return false;
+        return 'FAILED';
       }
     },
 

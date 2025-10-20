@@ -16,12 +16,12 @@
         </div>
 
         <div class="form-group" v-if="isRegistering">
-          <label for="givenName">First Name:</label> <!-- Swapped -->
+          <label for="givenName">First Name:</label>
           <input type="text" id="givenName" v-model="givenName" required />
         </div>
 
         <div class="form-group" v-if="isRegistering">
-          <label for="name">Last Name:</label> <!-- Swapped -->
+          <label for="name">Last Name:</label>
           <input type="text" id="name" v-model="name" required />
         </div>
 
@@ -45,6 +45,10 @@
           Don't have an account? <a href="#" @click.prevent="isRegistering = true">Register here</a>
         </span>
       </p>
+
+      <p class="manual-confirm" v-if="!isRegistering">
+        <router-link :to="{ name: 'confirm-user' }">Need to confirm your account?</router-link>
+      </p>
     </div>
   </div>
 </template>
@@ -65,7 +69,6 @@ const givenName = ref(''); // Corresponds to First Name
 const password = ref('');
 
 async function handleRegister() {
-  // Add explicit validation before calling the store action
   if (!name.value.trim() || !givenName.value.trim()) {
     userStore.authError = 'First Name and Last Name are required for registration.';
     return;
@@ -73,16 +76,17 @@ async function handleRegister() {
 
   const success = await userStore.register(username.value, email.value, password.value, name.value, givenName.value);
   if (success) {
-    alert('Registration successful! Please log in.');
-    isRegistering.value = false; // Switch to login form
-    // Optionally pre-fill username
+    router.push({ name: 'confirm-user', query: { username: username.value } });
   }
 }
 
 async function handleLogin() {
-  const success = await userStore.login(username.value, password.value);
-  if (success) {
+  const status = await userStore.login(username.value, password.value);
+  if (status === 'SUCCESS') {
     router.push('/'); // Redirect to home or dashboard on successful login
+  } else if (status === 'UNCONFIRMED') {
+    // If user is not confirmed, redirect to the confirmation page
+    router.push({ name: 'confirm-user', query: { username: username.value } });
   }
 }
 </script>
@@ -163,6 +167,20 @@ button:disabled {
 }
 
 .toggle-mode a:hover {
+  text-decoration: underline;
+}
+
+.manual-confirm {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.manual-confirm a {
+  color: #6c757d;
+  text-decoration: none;
+}
+
+.manual-confirm a:hover {
   text-decoration: underline;
 }
 </style>

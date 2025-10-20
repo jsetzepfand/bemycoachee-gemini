@@ -4,8 +4,9 @@ import CoachingView from '../views/CoachingView.vue'
 import PricingView from '../views/PricingView.vue'
 import ContactView from '../views/ContactView.vue'
 import ArchiveView from '../views/ArchiveView.vue'
-import AuthView from '../views/AuthView.vue' // Import the new AuthView
-import { useUserStore } from '../stores/user' // Import the user store
+import AuthView from '../views/AuthView.vue'
+import ConfirmUserView from '../views/ConfirmUserView.vue' // Import the new confirmation view
+import { useUserStore } from '../stores/user'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -42,6 +43,11 @@ const router = createRouter({
       path: '/auth',
       name: 'auth',
       component: AuthView
+    },
+    {
+      path: '/confirm-user',
+      name: 'confirm-user',
+      component: ConfirmUserView
     }
   ]
 })
