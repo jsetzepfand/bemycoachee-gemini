@@ -99,8 +99,16 @@ export const useChatStore = defineStore('chat', {
 
       try {
         if (id) {
-          this.conversationId = id;
-          const existingMessages = await apiService.fetchMessages(id);
+          const userStore = useUserStore();
+          if (!userStore.user?.id) {
+            throw new Error("User not authenticated. Cannot load conversation.");
+          }
+          const userId = userStore.user.id;
+          // Construct conversationId using userId and topic
+          const fullConversationId = `${userId}-${id}`;
+          this.conversationId = fullConversationId;
+
+          const existingMessages = await apiService.fetchMessages(fullConversationId);
           const formattedTopic = id.replace(/-/g, ' ');
 
           if (genAI) {
@@ -144,7 +152,7 @@ export const useChatStore = defineStore('chat', {
               this.messages = [greetingMessage]; // Set messages to just the greeting
 
               await apiService.saveMessage({
-                conversationId: this.conversationId,
+                conversationId: fullConversationId, // Use fullConversationId here
                 text: greetingMessage.text,
                 sender: { id: 'coach', name: 'AI Coach' },
                 timestamp: new Date().toISOString(),
@@ -168,6 +176,14 @@ export const useChatStore = defineStore('chat', {
       this.isLoading = true;
       this.error = null;
 
+      const userStore = useUserStore();
+      if (!userStore.user?.id) {
+        throw new Error("User not authenticated. Cannot send message.");
+      }
+      const userId = userStore.user.id;
+      const topic = this.conversationId.split('-').slice(1).join('-'); // Extract topic from fullConversationId
+      const fullConversationId = `${userId}-${topic}`;
+
       const userMessage: ChatMessage = {
         text,
         sender: 'user',
@@ -175,7 +191,7 @@ export const useChatStore = defineStore('chat', {
       };
       this.messages.push(userMessage);
       await apiService.saveMessage({
-        conversationId: this.conversationId,
+        conversationId: fullConversationId, // Use fullConversationId here
         text: userMessage.text,
         sender: { id: 'user', name: 'User' },
         timestamp: new Date().toISOString(),
@@ -183,7 +199,7 @@ export const useChatStore = defineStore('chat', {
 
       try {
         let messageForAI = text;
-        const formattedTopic = this.conversationId ? this.conversationId.replace(/-/g, ' ') : '';
+        const formattedTopic = topic.replace(/-/g, ' ');
         const systemInstruction = `You are an AI coach named Coachee. The current conversation topic is "${formattedTopic}". Always acknowledge and refer to this established topic in your responses. Be supportive, empathetic, and reflective. Keep your responses concise (2-3 sentences) and always end with a question to encourage the user to think deeper.`;
 
         // If it's the first user message in a new conversation OR an existing one with only coach messages,
@@ -220,7 +236,7 @@ export const useChatStore = defineStore('chat', {
         this.messages.push(coachMessage);
 
         await apiService.saveMessage({
-          conversationId: this.conversationId,
+          conversationId: fullConversationId, // Use fullConversationId here
           text: coachMessage.text,
           sender: { id: 'coach', name: 'AI Coach' },
           timestamp: new Date().toISOString(),

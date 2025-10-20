@@ -15,6 +15,16 @@
           <input type="email" id="email" v-model="email" required />
         </div>
 
+        <div class="form-group" v-if="isRegistering">
+          <label for="givenName">First Name:</label> <!-- Swapped -->
+          <input type="text" id="givenName" v-model="givenName" required />
+        </div>
+
+        <div class="form-group" v-if="isRegistering">
+          <label for="name">Last Name:</label> <!-- Swapped -->
+          <input type="text" id="name" v-model="name" required />
+        </div>
+
         <div class="form-group">
           <label for="password">Password:</label>
           <input type="password" id="password" v-model="password" required />
@@ -50,10 +60,18 @@ const router = useRouter();
 const isRegistering = ref(false);
 const username = ref('');
 const email = ref('');
+const name = ref(''); // Corresponds to Last Name
+const givenName = ref(''); // Corresponds to First Name
 const password = ref('');
 
 async function handleRegister() {
-  const success = await userStore.register(username.value, email.value, password.value);
+  // Add explicit validation before calling the store action
+  if (!name.value.trim() || !givenName.value.trim()) {
+    userStore.authError = 'First Name and Last Name are required for registration.';
+    return;
+  }
+
+  const success = await userStore.register(username.value, email.value, password.value, name.value, givenName.value);
   if (success) {
     alert('Registration successful! Please log in.');
     isRegistering.value = false; // Switch to login form

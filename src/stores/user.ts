@@ -4,6 +4,8 @@ interface User {
   id: string;
   username: string;
   email: string;
+  name?: string;
+  givenName?: string;
 }
 
 interface AuthResponse {
@@ -11,6 +13,8 @@ interface AuthResponse {
   userId: string;
   username: string;
   email: string;
+  name?: string;
+  givenName?: string;
 }
 
 const API_BASE_URL = 'https://g6ewdsfzsz.eu-central-1.awsapprunner.com'; // Your backend API base URL
@@ -25,14 +29,20 @@ export const useUserStore = defineStore('user', {
   }),
 
   actions: {
-    async register(username: string, email: string, password: string): Promise<boolean> {
+    async register(username: string, email: string, password: string, name?: string, givenName?: string): Promise<boolean> {
       this.isLoading = true;
       this.authError = null;
       try {
         const response = await fetch(`${API_BASE_URL}/users/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password }),
+          body: JSON.stringify({ 
+            username,
+            email,
+            password,
+            name: name, // Maps to "gross"
+            givenname: givenName // Maps to "benno"
+          }), // Use flat structure as confirmed
         });
 
         if (!response.ok) {
@@ -40,8 +50,6 @@ export const useUserStore = defineStore('user', {
           throw new Error(errorData.message || 'Registration failed');
         }
 
-        // Registration successful, but no token is returned from /register as per your description
-        // User needs to log in after successful registration
         this.isLoading = false;
         return true;
       } catch (error) {
@@ -55,7 +63,7 @@ export const useUserStore = defineStore('user', {
       this.isLoading = true;
       this.authError = null;
       try {
-        const response = await fetch(`${API_BASE_URL}/users/login`, { // Corrected endpoint
+        const response = await fetch(`${API_BASE_URL}/users/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password }),
@@ -68,7 +76,13 @@ export const useUserStore = defineStore('user', {
 
         const data: AuthResponse = await response.json();
         this.jwtToken = data.token;
-        this.user = { id: data.userId, username: data.username, email: data.email };
+        this.user = { 
+          id: data.userId, 
+          username: data.username, 
+          email: data.email,
+          name: data.name,
+          givenName: data.givenName
+        };
         this.isAuthenticated = true;
         localStorage.setItem('jwtToken', data.token);
         localStorage.setItem('user', JSON.stringify(this.user));
@@ -96,7 +110,6 @@ export const useUserStore = defineStore('user', {
       if (token && userJson) {
         try {
           const user: User = JSON.parse(userJson);
-          // Basic validation: In a real app, you'd validate the JWT more thoroughly (e.g., check expiry, signature)
           this.jwtToken = token;
           this.user = user;
           this.isAuthenticated = true;
