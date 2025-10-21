@@ -8,7 +8,6 @@ interface User {
   givenName?: string; // First Name
 }
 
-// This interface now matches the backend response
 interface AuthResponse {
   idToken: string;
   refreshToken: string;
@@ -41,7 +40,8 @@ export const useUserStore = defineStore('user', {
   state: () => ({
     isAuthenticated: false,
     user: null as User | null,
-    jwtToken: null as string | null,
+    idToken: null as string | null, // Renamed from jwtToken for clarity
+    accessToken: null as string | null, // Added accessToken
     authError: null as string | null,
     isLoading: false,
   }),
@@ -144,7 +144,8 @@ export const useUserStore = defineStore('user', {
         }
 
         const data: AuthResponse = await response.json();
-        this.jwtToken = data.idToken; // Use idToken from the response
+        this.idToken = data.idToken;
+        this.accessToken = data.accessToken;
 
         const decodedToken = parseJwt(data.idToken);
         if (!decodedToken) {
@@ -152,11 +153,11 @@ export const useUserStore = defineStore('user', {
         }
 
         this.user = { 
-          id: decodedToken.sub, // 'sub' is the standard JWT claim for user ID
+          id: decodedToken.sub,
           username: decodedToken['cognito:username'] || decodedToken.username,
           email: decodedToken.email,
-          name: decodedToken.name, // Map 'name' claim to last name
-          givenName: decodedToken.given_name // Map 'given_name' claim to first name
+          name: decodedToken.name,
+          givenName: decodedToken.given_name
         };
 
         if (!this.user.id || !this.user.username) {
@@ -164,7 +165,8 @@ export const useUserStore = defineStore('user', {
         }
 
         this.isAuthenticated = true;
-        localStorage.setItem('jwtToken', data.idToken); // Store the idToken
+        localStorage.setItem('idToken', data.idToken);
+        localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('user', JSON.stringify(this.user));
         this.isLoading = false;
         return 'SUCCESS';
@@ -178,20 +180,24 @@ export const useUserStore = defineStore('user', {
     logout() {
       this.isAuthenticated = false;
       this.user = null;
-      this.jwtToken = null;
-      localStorage.removeItem('jwtToken');
+      this.idToken = null;
+      this.accessToken = null;
+      localStorage.removeItem('idToken');
+      localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
     },
 
     initializeAuth() {
-      const token = localStorage.getItem('jwtToken');
+      const idToken = localStorage.getItem('idToken');
+      const accessToken = localStorage.getItem('accessToken');
       const userJson = localStorage.getItem('user');
 
-      if (token && userJson) {
+      if (idToken && accessToken && userJson) {
         try {
           const user: User = JSON.parse(userJson);
           if (user && user.id && user.username) {
-            this.jwtToken = token;
+            this.idToken = idToken;
+            this.accessToken = accessToken;
             this.user = user;
             this.isAuthenticated = true;
           }

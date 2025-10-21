@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
+import { useUserStore } from '../stores/user' // Import the user store
 
 // The full message structure from your API
 interface ApiMessage {
@@ -24,10 +25,16 @@ const API_URL = 'https://g6ewdsfzsz.eu-central-1.awsapprunner.com'
 
 onMounted(async () => {
   try {
-    // 1. Fetch ALL messages from the /messages endpoint
-    const response = await fetch(`${API_URL}/messages`)
+    const userStore = useUserStore();
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (userStore.accessToken) {
+      headers['Authorization'] = `Bearer ${userStore.accessToken}`;
+    }
+
+    // 1. Fetch ALL messages from the /messages endpoint with authentication
+    const response = await fetch(`${API_URL}/messages`, { headers });
     if (!response.ok) {
-      throw new Error('Failed to fetch messages')
+      throw new Error('Failed to fetch messages. Please ensure you are logged in.');
     }
     const allMessages: ApiMessage[] = await response.json()
 

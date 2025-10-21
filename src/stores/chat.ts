@@ -39,6 +39,58 @@ if (!GEMINI_API_KEY || GEMINI_API_KEY === 'YOUR_API_KEY') {
   genAI = new GenerativeAI.GoogleGenerativeAI(GEMINI_API_KEY);
 }
 
+// This function handles all AI responses *after* the initial greeting.
+async function getAiResponse(chat: ChatSession, newUserMessage: string): Promise<string> {
+  if (!genAI) {
+    return `(Mock AI) I hear you saying: "${newUserMessage}".`;
+  }
+
+  try {
+    const result = await chat.sendMessage(newUserMessage);
+    const response = await result.response;
+
+    if (response.promptFeedback?.blockReason) {
+      return `My response was blocked due to: ${response.promptFeedback.blockReason}.`;
+    }
+
+    return response.text();
+  } catch (error) {
+    console.error('Error calling Google AI API:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    return `I'm having trouble connecting to the AI service. The API returned an error: ${errorMessage}`;
+  }
+}
+
+// This function is specifically for generating the very first AI greeting.
+async function generateInitialGreeting(topic: string): Promise<string> {
+  if (!genAI) {
+    return `(Mock AI) I see you want to talk about ${topic}. How can I help you?`;
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    const systemInstruction = `You are an AI coach named Coachee. The user has just started a new conversation with the topic: "${topic}". Your first response MUST be a warm greeting, explicitly acknowledge and reference this topic (e.g., "I see you're interested in ${topic}"), and then ask a brief, open-ended question to encourage the user to elaborate. Keep your response to 1-2 sentences.`;
+
+    // Use generateContent directly for the initial greeting, with a strong system instruction
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: 'Generate initial greeting' }] }], // Dummy user message to trigger response
+      systemInstruction: systemInstruction
+    });
+    const response = await result.response;
+
+    if (response.promptFeedback?.blockReason) {
+      return `My response was blocked due to: ${response.promptFeedback.blockReason}.`;
+    }
+
+    return response.text();
+  } catch (error) {
+    console.error('Error generating initial AI greeting:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+    return `I'm having trouble generating an initial greeting. The API returned an error: ${errorMessage}`;
+  }
+}
+
 // --- Backend Service ---
 
 const API_URL = 'https://g6ewdsfzsz.eu-central-1.awsapprunner.com';
@@ -47,8 +99,8 @@ const apiService = {
   async fetchMessages(conversationId: string): Promise<ChatMessage[]> {
     const userStore = useUserStore(); // Get access to the user store
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (userStore.jwtToken) {
-      headers['Authorization'] = `Bearer ${userStore.jwtToken}`;
+    if (userStore.idToken) { // Use idToken for API authorization
+      headers['Authorization'] = `Bearer ${userStore.idToken}`;
     }
 
     const response = await fetch(`${API_URL}/messages/${conversationId}`, {
@@ -68,8 +120,8 @@ const apiService = {
   async saveMessage(message: object): Promise<void> {
     const userStore = useUserStore(); // Get access to the user store
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (userStore.jwtToken) {
-      headers['Authorization'] = `Bearer ${userStore.jwtToken}`;
+    if (userStore.idToken) { // Use idToken for API authorization
+      headers['Authorization'] = `Bearer ${userStore.idToken}`;
     }
 
     await fetch(`${API_URL}/messages`, {
